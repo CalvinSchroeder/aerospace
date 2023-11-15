@@ -1,0 +1,114 @@
+
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits import mplot3d
+
+#returns the magnitude of a given vector
+def mag(vector):
+    sum = 0
+    for i in range(len(vector)):
+        sum += (vector[i]) ** 2
+    magnitude = sum ** (1/2)
+    return magnitude
+
+#converts radians to degrees for the angles
+def rad_to_deg(radians):
+    degrees = radians * 180 / np.pi
+    return degrees
+
+print()
+print('Howdy! Welcome to the Aggie Orbital Elements Calculator!')
+print()
+
+radius = input('Please input radius as a vector in (km) the format (x,y,z): ')
+velocity = input('Please input velocity as a vector in (km/s) the format (x,y,z): ')
+print()
+
+#getting
+radius_comps = radius.split(',')
+if radius[0] == '(':
+    r = np.asarray((float(radius_comps[0][1:]), float(radius_comps[1]), float(radius_comps[2][:-1])))
+else:
+    r = np.asarray((float(radius_comps[0]), float(radius_comps[1]), float(radius_comps[2])))
+
+vel_comps = velocity.split(',')
+if velocity[0] == '(':
+    v = np.asarray((float(vel_comps[0][1:]), float(vel_comps[1]), float(vel_comps[2][:-1])))
+else:
+    v = np.asarray((float(vel_comps[0]), float(vel_comps[1]), float(vel_comps[2])))
+
+grav_param = 3.986 * 10 ** 5 #km^3 / s^2
+h = np.cross(r,v)
+energy = mag(v)**2 / 2 - (grav_param/mag(r))
+
+#a, semi-major axis
+a = -grav_param / (2 * energy)
+print(f'The semi-major axis of the orbit is {a:.1f}km')
+
+#e, eccentricity
+e_vector = ((mag(v)**2 - grav_param / mag(r)) * r - np.dot(r,v) * v)/grav_param
+e = mag(e_vector)
+print(f'The eccentricity axis of the orbit is {e:.4f}')
+
+#i, inclination
+k = np.asarray((0,0,1))
+i_rad = np.arccos(np.dot(h, k)/mag(h))
+i_deg = rad_to_deg(i_rad)
+print(f'The inclination of the orbit is {i_deg:.2f} degrees or {i_rad:.4f} radians')
+
+#omega, longitude of ascending node
+n = np.cross(k,h)
+I = np.asarray((1,0,0))
+omega_rad = np.arccos(np.dot(n,I)/mag(n))
+if n[1] < 0:
+    omega_rad = 2 * np.pi - omega_rad
+omega_deg = rad_to_deg(omega_rad)
+print(f'The longitude of the ascending node of the orbit is {omega_deg:.2f} degrees or {omega_rad:.4f} radians')
+
+#w, argument of perigee
+w_rad = np.arccos(np.dot(n,e_vector)/(mag(n)*e))
+if e_vector[2] < 0:
+    w_rad = 2 * np.pi - w_rad
+w_deg = rad_to_deg(w_rad)
+print(f'The argument of perigee of the orbit is {w_deg:.2f} degrees or {w_rad:.4f} radians')
+
+#v0, true anomaly
+v0_rad = np.arccos(np.dot(e_vector,r)/(e*mag(r)))
+if np.dot(r,v) < 0:
+    v0_rad = 2 * np.pi - v0_rad
+v0_deg = rad_to_deg(v0_rad)
+print(f'The true anomaly of the orbit is {v0_deg:.2f} degrees or {v0_rad:.4f} radians')
+print()
+
+orbitvis = input('Would you like a visualization of your orbit? [y/n] ')
+
+if orbitvis in 'YESYesyes':  
+    theta = np.linspace(0, 2*np.pi, 100)
+    phi = np.linspace(0,np.pi, 100)  
+    #prepping Earth plot
+    radius_earth = 6371 #km
+    cx = radius_earth * np.outer(np.cos(theta), np.sin(phi))
+    cy = radius_earth * np.outer(np.sin(theta), np.sin(phi))
+    cz = radius_earth * np.outer(np.ones(np.size(theta)), np.cos(phi))
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot_surface(cx,cy,cz, color='#34baf9', edgecolor='none', alpha = 0.5)
+
+    #prepping orbit plot
+    x, y, z = [], [], []
+    for i in range(len(theta)):
+        ri = (a * (1 - e**2)) / (1 + e * np.cos(theta[i]))
+        lat = np.arcsin(np.sin(i_rad) * np.sin(theta[i] - omega_rad)) #must translate the inclination to spherical coordinates, can use theta to find momentary phi?
+        x.append(ri * np.cos(theta[i]) * np.cos(lat))
+        y.append(ri * np.sin(theta[i]) * np.cos(lat))
+        z.append(ri * np.sin(lat))
+    ax.plot(x, y, z, color='r')
+
+    ax.set_title('Orbit in Reference to Earth')
+
+    plt.show()
+    
+else:
+    print('Fine.')
+
+print()
